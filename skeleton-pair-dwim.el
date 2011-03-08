@@ -27,21 +27,23 @@
 
 ;; requires
 (require 'skeleton)
-(setq skeleton-pair t)
 
-;; not to deactivate mark
-(defadvice skeleton-insert
-  (around skeleton-insert-dwim-advice)
-  (if (and transient-mark-mode (not mark-active))
-      ad-do-it
-    (progn
-      (save-excursion ad-do-it)
-      (setq deactivate-mark nil)
-      (if (< (mark) (point))
-	  (forward-char 1);;for undo
-	(set-mark (1+(mark)))
-      )
-      )))
+(progn
+  ;;setting for skeleton.el
+
+  (setq skeleton-pair t)
+  ;; not to deactivate mark
+  (defadvice skeleton-insert
+    (around skeleton-insert-dwim-advice)
+    (if (and transient-mark-mode (not mark-active))
+	ad-do-it
+      (progn
+	(save-excursion ad-do-it)
+	(setq deactivate-mark nil)
+	(if (< (mark) (point))
+	    (forward-char 1);;for undo
+	  (set-mark (1+(mark)))))))
+  )
 
 (defun skeleton-pair-dwim-closep (char)
   (let ((skeleton
@@ -53,7 +55,9 @@
 
 (defun skeleton-pair-dwim-openp (char)
   (and
-   (not (skeleton-pair-dwim-closep char))
+   (not
+    ;; support for (?( _ ?)) (?\)) type alist(skeleton-pair-default-alist)
+    (skeleton-pair-dwim-closep char))
    (let ((skeleton
 	  (or (assq char skeleton-pair-alist)
 	      (assq char skeleton-pair-default-alist))))
@@ -61,26 +65,20 @@
 	 nil
        skeleton))))
 
-(defun skeleton-pair-dwim-default-alist-to-keys()
-  (mapcar 'char-to-string
-	  (append (mapcar 'car
-			  skeleton-pair-alist)
-		  (mapcar 'car
-			  skeleton-pair-default-alist))))
-
 ;;interactive function
 ;;ok "" "aaa" over "aa aaa"
 (defun skeleton-pair-insert-dwim (arg)
   (interactive "*p")
-  (if (not skeleton-pair)
+  (if (or arg (not skeleton-pair))
       (self-insert-command (prefix-numeric-value arg))
     (let* ((char last-command-event)
 	   (closep (skeleton-pair-dwim-closep char))
+	   (openp (skeleton-pair-dwim-openp char))
 	   (mark (and skeleton-autowrap
 		      (or (eq last-command 'mouse-drag-region)
 			  (and transient-mark-mode mark-active))))
 	   (skeleton-end-hook))
-      (cond ((skeleton-pair-dwim-openp char)
+      (cond (openp
 	     (skeleton-pair-insert-maybe nil);;40(
 	     ;;(message "m1")
 	     )
@@ -104,57 +102,79 @@
 	     )
 	    ))))
 
-(defun skeleton-pair-dwim-inside-stringp ()
-  (nth 3 (parse-partial-sexp (point-min) (point))))
+(progn
+  ;; filter functions for skeleton-pair-filter-function
+  (defun skeleton-pair-dwim-inside-stringp ()
+    (nth 3 (parse-partial-sexp (point-min) (point))))
 
-(defun skeleton-pair-dwim-after-wordp ()
-  (if (not (skeleton-pair-dwim-openp last-command-event))
-      (= (char-syntax (preceding-char)) ?w)))
+  (defun skeleton-pair-dwim-after-wordp ()
+    (if (not (skeleton-pair-dwim-openp last-command-event))
+	(= (char-syntax (preceding-char)) ?w)))
 
-;;looking-back for )"
-(defun skeleton-pair-dwim-after-same-as-charp ()
-  (if (not (skeleton-pair-dwim-openp last-command-event))
-      (= last-command-event (preceding-char))))
-
-;;local set key
-(defun skeleton-pair-dwim-local-set-key(keys)
-  (let ((map (current-local-map)))
-    (or map
-	(use-local-map (setq map (make-sparse-keymap))))
-    (skeleton-pair-dwim-define-key map keys)))
-;;(global-set-key)
-(defun skeleton-pair-dwim-parse-key (keys)
-  (if (not (listp keys))
-      (setq keys (list keys)))
-  ;;(setq keys
-	(append keys
-		(delq nil
-		      (mapcar
-		       (lambda (key)
-			 (let ((openp (skeleton-pair-dwim-openp
-				       (string-to-char key))))
-			   (if openp
-			       (char-to-string(nth 2 openp))))
-			 )keys)))
+  ;;looking-back for )"
+  (defun skeleton-pair-dwim-after-same-as-charp ()
+    (if (not (skeleton-pair-dwim-openp last-command-event))
+	(= last-command-event (preceding-char))))
   )
 
-(defun skeleton-pair-dwim-define-key(maps keys)
-  (if (not (listp keys))
-      (setq keys (list keys)))
-  (if (keymapp maps)
-      (setq maps (list maps)))
-  (setq keys (skeleton-pair-dwim-parse-key keys))
-  (mapc
-   (lambda (map)
-     (mapc
-      (lambda (key)
-	(or (vectorp key) (stringp key)
-		(signal 'wrong-type-argument (list 'arrayp key)))
-	(define-key (if(keymapp map) map (eval map))
-	  key 'skeleton-pair-insert-dwim);;kbd?
-	)keys)
-     )maps))
+(progn
+  ;; key binding utility
+  (defun skeleton-pair-dwim-default-alist-to-keys()
+    (mapcar 'char-to-string
+	    (append (mapcar 'car
+			    skeleton-pair-alist)
+		    (mapcar 'car
+			    skeleton-pair-default-alist))))
 
+  (defun skeleton-pair-dwim-parse-key (keys)
+    (if (not (listp keys))
+	(setq keys (list keys)))
+    ;;(setq keys
+    (append keys
+	    (delq nil
+		  (mapcar
+		   (lambda (key)
+		     (let ((openp (skeleton-pair-dwim-openp
+				   (string-to-char key))))
+		       (if openp
+			   (char-to-string(nth 2 openp))))
+		     )keys)))
+    )
+
+  (defun skeleton-pair-dwim-local-set-key(keys &optional command)
+    (if (not (listp keys))
+	(setq keys (list keys)))
+    (mapc
+     (lambda (key)
+       (local-set-key key
+		      (or command 'skeleton-pair-insert-dwim)))
+     (skeleton-pair-dwim-parse-key keys)))
+
+  (defun skeleton-pair-dwim-global-set-key(keys &optional command)
+    (if (not (listp keys))
+	(setq keys (list keys)))
+    (mapc
+     (lambda (key)
+       (global-set-key key
+		       (or command 'skeleton-pair-insert-dwim)))
+     (skeleton-pair-dwim-parse-key keys)))
+
+  (defun skeleton-pair-dwim-define-key(maps keys &optional command)
+    (if (not (listp keys))
+	(setq keys (list keys)))
+    (if (keymapp maps)
+	(setq maps (list maps)))
+    (mapc
+     (lambda (map)
+       (mapc
+	(lambda (key)
+	  (or (vectorp key) (stringp key)
+	      (signal 'wrong-type-argument (list 'arrayp key)))
+	  (define-key (if(keymapp map) map (eval map))
+	    key 'skeleton-pair-insert-dwim);;kbd?
+	  )(skeleton-pair-dwim-parse-key keys))
+       )maps))
+  )
 ;;user-setting
 ;;(skeleton-pair-dwim-define-key
  ;;'(global-map emacs-lisp-mode-map) '("{" "(" "\"" "'"))
@@ -181,11 +201,12 @@
 	       )))
 
   ;; default
-  (skeleton-pair-dwim-define-key
-   global-map '("{" "(" "\"" "'"))
+  (skeleton-pair-dwim-global-set-key '("{" "(" "\"" "'" "`"))
 
   ;; (skeleton-pair-dwim-local-set-key
   ;;  (skeleton-pair-dwim-default-alist-to-keys))
+  ;;(skeleton-pair-dwim-global-set-key '("{" "(" "\"" "'" "`") 'self-insert-command)
+  ;;(skeleton-pair-dwim-global-set-key '("{" "(" "\"" "'" "`") nil)
   )
 
 (provide 'skeleton-pair-dwim)
