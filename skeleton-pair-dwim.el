@@ -65,42 +65,63 @@
 	 nil
        skeleton))))
 
+;;(defvar skeleton-pair-dwim-earmuff-only nil)
+;;(setq skeleton-pair-dwim-earmuff-only t)
+;;(setq skeleton-pair-dwim-earmuff-only nil)
 ;;interactive function
 ;;ok "" "aaa" over "aa aaa"
-(defun skeleton-pair-insert-dwim (arg)
+(global-set-key (kbd "+") 'skeleton-pair-insert-dwim-earmuff)
+
+(defun skeleton-pair-insert-dwim-earmuff (arg)
   (interactive "*p")
-  (if (or arg (not skeleton-pair))
-      (self-insert-command (prefix-numeric-value arg))
-    (let* ((char last-command-event)
-	   (closep (skeleton-pair-dwim-closep char))
-	   (openp (skeleton-pair-dwim-openp char))
-	   (mark (and skeleton-autowrap
-		      (or (eq last-command 'mouse-drag-region)
-			  (and transient-mark-mode mark-active))))
-	   (skeleton-end-hook))
-      (cond (openp
-	     (skeleton-pair-insert-maybe nil);;40(
-	     ;;(message "m1")
-	     )
-	    ((and (not mark)
-		  (eq (char-after) char)
-		  (eq this-command real-last-command));;41) & 34"
-	     (forward-char 1)
-	     ;;(message "m4")
-	     )
-	    ((not closep)
-	     (skeleton-pair-insert-maybe nil);;34"
-	     ;;(message "m2")
-	     )
-	    ((and mark closep)
-	     (skeleton-insert (cons nil closep) (if mark -1));;41)
-	     ;;(message "m3")
-	     )
-	    (t ;;closep
-	     (self-insert-command (prefix-numeric-value arg));;41)
-	     ;;(message "m5")
-	     )
-	    ))))
+  (skeleton-pair-insert-dwim arg t)
+  )
+
+(defun skeleton-pair-insert-dwim (arg &optional earmuff-only)
+  (interactive "*p")
+  (let* ((char last-command-event)
+	 (closep (skeleton-pair-dwim-closep char))
+	 (openp (skeleton-pair-dwim-openp char))
+	 (mark (and skeleton-autowrap
+		    (or (eq last-command 'mouse-drag-region)
+			(and transient-mark-mode mark-active))))
+	 (can-earmuff (and earmuff-only mark))
+	 (skeleton-end-hook))
+    ;;(message "%s %s %s %s" skeleton-pair-dwim-earmuff-only  (not can-earmuff) mark skeleton-pair-dwim-earmuff-only)
+    (if (or (not skeleton-pair)
+	    (and earmuff-only
+		(not can-earmuff)))
+	(progn
+	  ;;(message "m0")
+	  (self-insert-command (prefix-numeric-value arg))
+	)
+	(cond (openp
+	       (skeleton-pair-insert-maybe nil);;40(
+	       (if (and mark (< (mark) (point)))
+		 (exchange-point-and-mark))
+	       ;;(message "m1")
+	       )
+	      ((and (not mark)
+		    (eq (char-after) char)
+		    (eq this-command real-last-command));;41) & 34"
+	       (forward-char 1)
+	       ;;(message "m4")
+	       )
+	      ((not closep)
+	       (skeleton-pair-insert-maybe nil);;34"
+	       ;;(message "m2")
+	       )
+	      ((and mark closep)
+	       (skeleton-insert (cons nil closep) (if mark -1));;41)
+	       (if (and mark (< (point) (mark)))
+		 (exchange-point-and-mark))
+	       ;;(message "m3")
+	       )
+	      (t ;;(not mark closep)
+	       (self-insert-command (prefix-numeric-value arg));;41)
+	       ;;(message "m5")
+	       )
+	      ))))
 
 (progn
   ;; filter functions for skeleton-pair-filter-function
