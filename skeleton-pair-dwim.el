@@ -62,7 +62,6 @@
       (if (and skeleton (eq (car skeleton) (nth 2 skeleton)))
 	  nil
 	skeleton)))
-
   (defun skeleton-pair-dwim-openp (char)
     (and
      (not
@@ -92,55 +91,53 @@
   )
 
 (labels ((dmessage (string &rest arg)
-		   (apply 'message string arg)
-		   ))
-
-  (defun skeleton-pair-insert-dwim (arg &optional earmuff-only)
-    (interactive "*p")
-    (let* ((char last-command-event)
-	   (closep (skeleton-pair-dwim-closep char))
-	   (openp (skeleton-pair-dwim-openp char))
-	   (mark (and skeleton-autowrap
-		      (or (eq last-command 'mouse-drag-region)
-			  (and transient-mark-mode mark-active))))
-	   (can-earmuff (and earmuff-only mark))
-	   (skeleton (or closep openp `(,char _ ,char)))
-	   ;;(skeleton-end-hook)
-	   )
-      (if (or (not skeleton-pair)
-	      (and earmuff-only
-		   (not can-earmuff)))
-	  (progn
-	    (dmessage "m0")
-	    (self-insert-command (prefix-numeric-value arg))
-	    )
-	(cond (openp
-	       (skeleton-pair-insert-maybe nil);;40(
-	       (if (and mark (< (mark) (point)))
-		   (exchange-point-and-mark))
-	       (dmessage "m1")
-	       )
-	      ((and (not mark)
-		    (eq (char-after) char)
-		    (eq this-command real-last-command));;41) & 34"
-	       (forward-char 1);;move over close
-	       (dmessage "m4")
-	       )
-	      ((not closep)
-	       (skeleton-pair-insert-maybe nil);;34"
-	       (dmessage "m2");; open and region
-	       )
-	      ((and mark closep)
-	       (skeleton-insert (cons nil closep) (if mark -1));;41)
-	       (if (and mark (< (point) (mark)))
-		   (exchange-point-and-mark))
-	       (dmessage "m3");;region
-	       )
-	      (t ;;(not mark closep)
-	       (self-insert-command (prefix-numeric-value arg));;41)
-	       (dmessage "m5")
-	       )
-	      ))))
+		   (apply 'message string arg)))
+  ;; (defun skeleton-pair-insert-dwim (arg &optional earmuff-only)
+  ;;   (interactive "*p")
+  ;;   (let* ((char last-command-event)
+  ;; 	   (closep (skeleton-pair-dwim-closep char))
+  ;; 	   (openp (skeleton-pair-dwim-openp char))
+  ;; 	   (mark (and skeleton-autowrap
+  ;; 		      (or (eq last-command 'mouse-drag-region)
+  ;; 			  (and transient-mark-mode mark-active))))
+  ;; 	   (can-earmuff (and earmuff-only mark))
+  ;; 	   (skeleton (or closep openp `(,char _ ,char)))
+  ;; 	   ;;(skeleton-end-hook)
+  ;; 	   )
+  ;;     (if (or (not skeleton-pair)
+  ;; 	      (and earmuff-only
+  ;; 		   (not can-earmuff)))
+  ;; 	  (progn
+  ;; 	    (dmessage "m0")
+  ;; 	    (self-insert-command (prefix-numeric-value arg))
+  ;; 	    )
+  ;; 	(cond (openp
+  ;; 	       (skeleton-pair-insert-maybe nil);;40(
+  ;; 	       (if (and mark (< (mark) (point)))
+  ;; 		   (exchange-point-and-mark))
+  ;; 	       (dmessage "m1")
+  ;; 	       )
+  ;; 	      ((and (not mark)
+  ;; 		    (eq (char-after) char)
+  ;; 		    (eq this-command real-last-command));;41) & 34"
+  ;; 	       (forward-char 1);;move over close
+  ;; 	       (dmessage "m4")
+  ;; 	       )
+  ;; 	      ((not closep)
+  ;; 	       (skeleton-pair-insert-maybe nil);;34"
+  ;; 	       (dmessage "m2");; open and region
+  ;; 	       )
+  ;; 	      ((and mark closep)
+  ;; 	       (skeleton-insert (cons nil closep) (if mark -1));;41)
+  ;; 	       (if (and mark (< (point) (mark)))
+  ;; 		   (exchange-point-and-mark))
+  ;; 	       (dmessage "m3");;region
+  ;; 	       )
+  ;; 	      (t ;;(not mark closep)
+  ;; 	       (self-insert-command (prefix-numeric-value arg));;41)
+  ;; 	       (dmessage "m5")
+  ;; 	       )
+  ;; 	      ))))
   )
 
 ;;define-key
@@ -152,14 +149,12 @@
 ;; \(CONDITION . FUNCTION)
 ;; CONDITION を評価した結果、最初に真となる要素の FUNCTION が実行される。
 ;; 真となる要素が存在しない場合 `self-insert-command' が実行される。")
-;; 
+;;
 ;; (global-set-key (kbd "(") '(lambda (arg)
 ;; 			       (interactive "p")
 ;; 			       (message "%s" arg)))
-"aaa"
-(aaa abbb ddd   )
-(global-set-key (kbd "(") 'hoge)
-(global-set-key (kbd ")") 'hoge)
+;;(global-set-key (kbd "(") 'hoge)
+;;(global-set-key (kbd ")") 'hoge)
 (progn
   ;; filter functions for skeleton-pair-filter-function
   (defun skeleton-pair-dwim-inside-stringp ()
@@ -174,65 +169,12 @@
     (if (not (skeleton-pair-dwim-openp last-command-event))
 	(= last-command-event (preceding-char))))
   )
-(setq acp-insertion-functions
-      ;;(defvar acp-insertion-functions
-      '(;; (mark-active . (lambda(arg)
-	;; 		 (self-insert-command arg)
-	;; 		 (message "mark")))
-	(markp
-	 . (progn (skeleton-insert
-		   (cons nil skeleton) (if markp -1))
-		  (cond ((and openp (< (mark) (point)))
-			 (exchange-point-and-mark))
-			((and closep (< (point) (mark)))
-			 (exchange-point-and-mark)))
-		  (message "n1")))
-	((or
-	  ;;after escape
-	  (memq (char-syntax (preceding-char)) '(?\\ ?/))
-	  ;;before word
-	  (and (not closep) (looking-at "\\w"))
-	  ;;inside comment
-	  (not (memq (get-text-property (point) 'face)
-		     '(font-lock-comment-face font-lock-doc-face
-					      font-lock-string-face)))
-	  ;;after word
-	  ;;(and (not openp) (= (char-syntax (preceding-char)) ?w))
-	  )
-	 . (progn (self-insert-command arg)
-		  (message "n6fil")))
-	((and openp (memq (char-syntax (char-after)) '(?\\ ?/)))
-	      ()) .)
-	((and (not openp)
-	      (eq (char-after) char)
-	      (eq this-command real-last-command));;41) & 34"
-	 . (progn (forward-char 1);;move over close
-		  (message "n4")))
-	((not closep);;34" & 40(
-	 . (progn (skeleton-insert
-		   (cons nil skeleton) (if markp -1))
-		  ;;(skeleton-pair-insert-maybe nil)
-		  (message "n2");; open and region
-		 ))
-	;;(t . t)
-	;; (t . (lambda()
-	;; 	 (interactive)
-	;; 	 (self-insert-command arg)
-	;; 	 (message "default")))
-	(t . (progn (self-insert-command arg)
-		    (message "n5")))
-	;; (t . (lambda(arg)
-	;; 	      (interactive "p")
-	;; 	      (self-insert-command arg)
-	;; 	      (message "default c %s" arg)))
-	)
-      )
+(defvar acp-insertion-functions)
 
+(require 'cl)
 (labels ((dmessage (string &rest arg)
-		   (apply 'message string arg)
-		   ))
-
-  (defun hoge (arg)
+		   (apply 'message string arg)))
+  (defun skeleton-pair-insert-dwim (arg)
     (interactive "*p")
     (let* ((char last-command-event)
 	   (closep (skeleton-pair-dwim-closep char))
@@ -254,11 +196,8 @@
 		  ;;(command-execute (cdr x))
 		  (throw 'break t)))
 	      (append acp-insertion-functions
-		      '((t . self-insert-command)))
-	      )
-	)
-      ))
-  )
+		      '((t . self-insert-command)))))
+      )))
 
 (progn
   ;; key binding utility
@@ -283,7 +222,7 @@
 			   (char-to-string(nth 2 openp))))
 		     )keys)))
     )
-  
+
   (defun skeleton-pair-dwim-local-set-key(keys &optional command)
     (if (not (listp keys))
 	(setq keys (list keys)))
@@ -341,6 +280,70 @@
 ;; region
 (defvar skeleton-pair-dwim-default-keys '("{" "(" "\"" "'" "["))
 (defun skeleton-pair-dwim-load-default ()
+  (setq acp-insertion-functions
+	;;(defvar acp-insertion-functions
+	'(;; (mark-active . (lambda(arg)
+	  ;; (self-insert-command arg)
+	  ;; (message "mark")))
+	  (markp
+	   . (progn (skeleton-insert
+		     (cons nil skeleton) (if markp -1))
+		    (cond ((and openp (< (mark) (point)))
+			   (exchange-point-and-mark))
+			  ((and closep (< (point) (mark)))
+			   (exchange-point-and-mark)))
+		    (message "n1")))
+	  ((or
+	    ;;after escape
+	    (memq (char-syntax (preceding-char)) '(?\\ ?/))
+	    ;;before word
+	    ;;(and (not closep) (looking-at "\\w"))
+	    (and (not closep)
+		 (memq (char-syntax (char-after)) '(?w)))
+	    ;;inside comment
+	    (memq (get-text-property (point) 'face)
+		  '(font-lock-comment-face font-lock-doc-face
+					   font-lock-string-face))
+	    ;;after word
+	    ;;(and (not openp) (= (char-syntax (preceding-char)) ?w))
+	    )
+	   . (progn (self-insert-command arg)
+		    (message "n6fil")))
+	  ((and openp
+		(memq (char-syntax (char-after)) '(?\( ?\")))
+	   . (progn
+	       (self-insert-command 1)
+	       (undo-boundary)
+	       (set-mark
+		(save-excursion
+		  (let* ((message-log-max nil))
+		    ;; Don't log messages in message buffer
+		    ;;copy from blink-matching-open
+		    (condition-case ()
+			(forward-sexp 1)
+		      ;;(scan-sexps oldpos -1)
+		      (error nil))
+		    (insert (nth 2 skeleton))
+		    (point))))
+	       (setq deactivate-mark nil)
+	       ;;(backward-char)
+	       ;;(forward-char)
+	       ))
+	  ((and (not openp)
+		(eq (char-after) char)
+		(eq this-command real-last-command));;41) & 34"
+	   . (progn (forward-char 1);;move over close
+		    (message "n4")))
+	  ((not closep);;34" & 40(
+	   . (progn (skeleton-insert
+		     (cons nil skeleton) (if markp -1))
+		    ;;(skeleton-pair-insert-maybe nil)
+		    (message "n2");; open and region
+		    ))
+	  (t . (progn (self-insert-command arg)
+		      (message "n5")))
+	  )
+	)
 
   (ad-activate-regexp 'skeleton-insert-dwim-advice)
 
