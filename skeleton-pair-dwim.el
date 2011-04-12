@@ -296,21 +296,38 @@
 	  ((or
 	    ;;after escape
 	    (memq (char-syntax (preceding-char)) '(?\\ ?/))
-	    ;;before word
+	    ;;quote before word or bounds-of-thing-at-point
 	    ;;(and (not closep) (looking-at "\\w"))
 	    (and (not closep)
-		 (memq (char-syntax (char-after)) '(?w)))
+		 (memq (char-syntax (following-char)) '(?w))
+		 (memq (char-syntax last-command-event) '(?'))
+		 )
 	    ;;inside comment
-	    (memq (get-text-property (point) 'face)
-		  '(font-lock-comment-face font-lock-doc-face
-					   font-lock-string-face))
-	    ;;after word
-	    ;;(and (not openp) (= (char-syntax (preceding-char)) ?w))
+	    ;;"aaa"'
+	    ;;(goto-char (previous-property-change (point)))
+	    ;;(goto-char (next-single-property-change (point) 'face))
+	    (and (memq (get-text-property (point) 'face)
+		       '(font-lock-comment-face font-lock-doc-face
+						font-lock-string-face))
+		 ;;(not (memq (char-syntax (following-char)) '(?\" ?\')))
+		 (not (eq (previous-single-property-change (1+ (point)) 'face)
+			  (point)))
+		 )
+	    ;;after word for hoge(
+	    ;;and ((not openp)
+	    (= (char-syntax (preceding-char)) ?w)
+	    ;;)
 	    )
 	   . (progn (self-insert-command arg)
 		    (message "n6fil")))
-	  ((and openp
-		(memq (char-syntax (char-after)) '(?\( ?\")))
+	  ((and (not closep)
+		(or
+		 ;;(eq (car (bounds-of-thing-at-point 'symbol)) (point))
+		 (and (thing-at-point 'symbol) (beginning-of-thing 'symbol))
+		 (memq (char-syntax (following-char)) '(?\( ?\"))
+		 ))
+	   ;;aaa
+	   ;;bug for "(" " "
 	   . (progn
 	       (self-insert-command 1)
 	       (undo-boundary)
@@ -330,7 +347,7 @@
 	       ;;(forward-char)
 	       ))
 	  ((and (not openp)
-		(eq (char-after) char)
+		(eq (following-char) char)
 		(eq this-command real-last-command));;41) & 34"
 	   . (progn (forward-char 1);;move over close
 		    (message "n4")))
